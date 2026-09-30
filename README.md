@@ -17,9 +17,7 @@ All captured from the seeded sample data.
 | ![Recommendations board grouped by status](docs/screenshots/recommendations.png) | ![Journey map detail with friction-rated stages](docs/screenshots/journey-map.png) |
 | **Recommendations** — a board grouped by status (display-only; edit a card to change its status) | **Journey map** — stages with a 0–5 friction rating and linked findings and personas |
 
-![AI transcript review: suggested pain points with approve and reject controls](docs/screenshots/ai-review.png)
-
-**AI transcript review** — every suggestion is approved or rejected individually; nothing is saved until you click save.
+<!-- TODO: add docs/screenshots/ai-review.png (the /ai/transcripts "Review suggestions" screen after an extraction) and its caption here. -->
 
 ## What it does
 
