@@ -1,9 +1,9 @@
 # InvestorLens — Project Context
 
 > Single-file orientation for someone (or an AI assistant) who has never seen this codebase.
-> Every claim below was taken from the source as of **2026-09-30**. Where something could not be confirmed from the code, it is marked **Unclear**. No secrets appear in this file.
+> Claims below were taken from the source on **2026-09-30** and updated on **2026-10-01** after the bug-fix, integrity, hygiene and CI work described in [§11](#11-current-status). Where something could not be confirmed from the code, it is marked **Unclear**. No secrets appear in this file.
 >
-> Reading order of the other docs in the repo: `README.md` (feature tour), `PRD.md` (product intent), `RUN_INSTRUCTIONS.txt` (setup), `DESIGN.md` (visual system), `AGENTS.md`/`CLAUDE.md` (agent rules), `AUDIT.md` (**stale**, see [§11.4](#114-auditmd-reconciliation)).
+> Other docs: [`../README.md`](../README.md) (overview, setup, limitations), [`PRD.md`](PRD.md) (product intent), [`../DESIGN.md`](../DESIGN.md) (visual system), [`../AGENTS.md`](../AGENTS.md) / [`../CLAUDE.md`](../CLAUDE.md) (agent rules). Paths elsewhere in this file are relative to the repo root.
 
 ---
 
@@ -50,7 +50,7 @@ Versions are the *installed* versions in `node_modules` (declared ranges are in 
 
 | Layer | Choice | Version (installed) | Where |
 |---|---|---|---|
-| Runtime | Node.js | v22.22.2 on the dev machine; `RUN_INSTRUCTIONS.txt` says ≥ 20.9 | — |
+| Runtime | Node.js | v22.22.2 on the dev machine; README says ≥ 20.9; CI runs Node 22 | — |
 | Framework | Next.js (App Router, Server Components, Server Actions, Turbopack) | 16.2.9 (pinned) | `next.config.ts` |
 | UI library | React | 19.2.4 (pinned) | — |
 | Language | TypeScript (strict) | ^5 | `tsconfig.json` (path alias `@/*` → `src/*`) |
@@ -59,13 +59,14 @@ Versions are the *installed* versions in `node_modules` (declared ranges are in 
 | Charts | Recharts | 3.8.1 | `src/components/features/dashboard/` |
 | Validation | Zod (shared by client-visible schemas and server actions) | 4.4.3 | `src/lib/validations/` |
 | Database | SQLite, single file `prisma/dev.db` | — | — |
-| ORM | Prisma Client + `@prisma/adapter-better-sqlite3` driver adapter; native module `better-sqlite3` | `@prisma/client` 7.8.0, CLI `prisma` 7.10.0 installed (see [§12](#12-suggested-improvements)) | `prisma/schema.prisma`, `src/lib/db.ts` |
+| ORM | Prisma Client + `@prisma/adapter-better-sqlite3` driver adapter; native module `better-sqlite3` | `@prisma/client`, `@prisma/adapter-better-sqlite3` and CLI `prisma` all pinned to 7.10.0 | `prisma/schema.prisma`, `src/lib/db.ts` |
 | Fonts | `next/font/google`: Inter (`--font-sans`) and Cormorant Garamond 500 (`--font-display`, used as `font-heading`) | — | `src/app/layout.tsx` |
 | AI (optional) | Google Gemini over plain `fetch` (no SDK) | model default `gemini-3.8-flash` | `src/server/ai/gemini.ts` |
 | Lint | ESLint 9 + `eslint-config-next` 16.2.9 (core-web-vitals + typescript) | — | `eslint.config.mjs` |
 | TS runner | `tsx` (seed script and AI self-check) | ^4.22.4 | — |
+| CI | GitHub Actions: lint, typecheck, AI self-check, build on push/PR to `main` | — | `.github/workflows/ci.yml` |
 
-Not present: test framework, CI config, Dockerfile, auth library, REST/GraphQL API layer, background job system, cache layer, PDF library (the report uses the browser's print dialog).
+Not present: a test framework (the only check is the AI self-check script), Dockerfile, auth library, REST/GraphQL API layer, background job system, cache layer, PDF library (the report uses the browser's print dialog).
 
 ---
 
@@ -110,17 +111,19 @@ Next.js 16 specifics used (AGENTS.md warns this is not the Next you may remember
 InvestorLens/
 ├─ CLAUDE.md                 One line: "@AGENTS.md" (imports agent rules)
 ├─ AGENTS.md                 "This is NOT the Next.js you know" — read node_modules/next/dist/docs/ before writing Next code
-├─ README.md                 User-facing overview (accurate against current code)
-├─ PRD.md                    Product requirements; "Built and working" status
-├─ RUN_INSTRUCTIONS.txt      Step-by-step setup + troubleshooting
+├─ README.md                 Overview, AI design notes, setup, scripts, limitations
+├─ LICENSE                   MIT
 ├─ DESIGN.md                 Design tokens/rules (warm cream canvas + coral, serif display headings). UI work must follow it
-├─ AUDIT.md                  README-vs-code audit dated 2026-09-23 — STALE, describes an earlier state of the code
-├─ PROJECT_CONTEXT.md        This file
+├─ docs/
+│  ├─ PRD.md                 Product requirements; "Built and working" status
+│  ├─ PROJECT_CONTEXT.md     This file
+│  └─ screenshots/           Images used by the README
+├─ .github/workflows/ci.yml  CI (lint, typecheck, check:ai, build)
 ├─ package.json / package-lock.json
 ├─ next.config.ts            serverExternalPackages: ["better-sqlite3"]
 ├─ prisma.config.ts          Prisma 7 config: schema path, datasource url "file:./prisma/dev.db", migrations.seed = "npx tsx prisma/seed.ts"
 ├─ tsconfig.json, eslint.config.mjs, postcss.config.mjs, components.json (shadcn)
-├─ .env / .env.example       Env files (.env is git-ignored; see §9). NOTE .gitignore pattern ".env*" also ignores .env.example
+├─ .env / .env.example       Env files (.env is git-ignored; .env.example is tracked via `!.env.example`; see §9)
 ├─ prisma/
 │  ├─ schema.prisma          7 enums, 8 models (see §6)
 │  ├─ migrations/            20260923101256_init, 20260923103402_journey_stage_links, migration_lock.toml
@@ -163,7 +166,7 @@ InvestorLens/
    │  ├─ utils.ts            cn(), formatDate(), truncate()
    │  └─ validations/        Zod schemas: project, interview, persona, finding, recommendation, journeyMap
    ├─ server/
-   │  ├─ actions/            project, interview, persona, finding, recommendation, journeyMap, ai, types
+   │  ├─ actions/            project, interview, persona, finding, recommendation, journeyMap, ai, types, links (shared interviewsBelongToProject helper; not a "use server" file)
    │  ├─ queries/            project, interview, persona, finding, recommendation, journeyMap, dashboard, search
    │  └─ ai/                 gemini.ts (client), transcript.ts (prompt/schema/validation), transcript.check.ts (self-check script)
    └─ types/index.ts         Re-exports Prisma model/enum types + ProjectWithCounts
@@ -192,29 +195,29 @@ InvestorLens/
 - **What:** top-level container (name ≤100, optional description ≤500, status ACTIVE/COMPLETED/ARCHIVED). Deleting a project cascades to everything under it.
 - **Files:** pages `src/app/(app)/projects/{page,new/page,[id]/page,[id]/edit/page,[id]/not-found}.tsx`; components `ProjectCard`, `ProjectForm`, `DeleteProjectButton`, `ProjectStatCard`; actions `createProject`, `updateProject`, `deleteProject` in `src/server/actions/project.ts`; queries `getAllProjects`, `getProjectById` (both include `_count` of interviews, findings, personas, recommendations, journeyMaps); schemas `createProjectSchema`, `updateProjectSchema`.
 - **Flow:** list → card → detail page (counts, quick links to each section, "Export report" → `/report/<id>`, Edit, Delete). Create redirects to `/projects/<id>`; update returns success toast; delete redirects to `/projects`.
-- **Edge cases / limits:** `ProjectForm` sends the current `status` as a hidden input and offers no status control, so **status cannot be changed from the UI** (the Archived badge path in cards/detail is only reachable via DB edits). `updateProjectSchema.status` is optional but `formData.get("status")` returns `null` when absent, which `z.enum().optional()` rejects (not reachable from the UI because the hidden field is always sent). `DeleteProjectButton` copy lists "interviews, findings, personas, and recommendations" (omits journey maps, which are also deleted).
+- **Edge cases / limits:** `ProjectForm` shows an Active / Completed / Archived select in edit mode only (create always starts Active). `updateProjectSchema.status` is optional but `formData.get("status")` returns `null` when absent, which `z.enum().optional()` rejects; that is unreachable from the UI because the select is always submitted in edit mode. `DeleteProjectButton` lists interviews, findings, personas, recommendations and journey maps, all of which cascade.
 
 ### 5.2 Interviews
 
 - **What:** one record per participant: name (≤150), age (int 18–100), platform (`InvestingPlatform`), optional occupation (`candidateRole` ≤100) and employer (`candidateCompany` ≤150), optional investing behavior / goals / frustrations (≤2000 each), date conducted, and free-text `notesText` (required, no max).
 - **Files:** `src/app/(app)/interviews/**`; `InterviewCard`, `InterviewForm`, `DeleteInterviewButton`; actions `createInterview`, `updateInterview`, `deleteInterview` (`actions/interview.ts`); queries `getInterviewsByProject(projectId, {platform, ageMin, ageMax, search})`, `getInterviewById` (cached; includes project and findings); schema `lib/validations/interview.ts`.
 - **Flow:** list page filters: platform pills, age range (min/max), free-text `q` over name/role/company/notes (`contains`, i.e. SQLite `LIKE`). The list query uses `LIST_SELECT` and **never loads `notesText`** (only the detail page does). Detail page shows context, the three optional text blocks, session notes (`whitespace-pre-wrap`), and the findings sourced from this interview. Date input uses `<input type="date">`; `z.coerce.date` parses `YYYY-MM-DD` as UTC midnight and the form re-renders it with `toISOString().slice(0,10)`.
-- **Edge cases / limits:** deleting an interview sets `Finding.interviewId` to null (`onDelete: SetNull`) and removes its `PersonaInterview` rows. **Bug (read from code, not runtime-tested):** `updateInterview` maps empty optional fields to `undefined` (`formData.get(x) || undefined`), and Prisma `update` ignores `undefined`, so **clearing an optional field (occupation, employer, behavior, goals, frustrations) on edit does not clear it in the DB**. Contrast with persona/finding/journey-map updates, which map empty → `null`. No pagination.
+- **Edge cases / limits:** deleting an interview sets `Finding.interviewId` to null (`onDelete: SetNull`) and removes its `PersonaInterview` rows. `updateInterview` maps emptied optional fields to `null` (the schema fields are `.nullish()`), so clearing occupation, employer, behavior, goals or frustrations on edit clears them in the DB. It also loads the interview and writes its stored `projectId` rather than trusting the form, returning `{ message }` if the record no longer exists. No pagination.
 
 ### 5.3 Personas
 
-- **What:** synthesized user type: name (≤100), role (≤100, required), optional age range (free text ≤50, e.g. "25-34"), optional occupation, optional avatar URL (validated as URL, rendered with a plain `<img>`), goals and frustrations (required text), plus a many-to-many link to the interviews it was derived from.
+- **What:** synthesized user type: name (≤100), role (≤100, required), optional age range (free text ≤50, e.g. "25-34"), optional occupation, optional avatar URL (validated as an http:// or https:// URL, rendered with a plain `<img>`), goals and frustrations (required text), plus a many-to-many link to the interviews it was derived from.
 - **Files:** `src/app/(app)/personas/**`; `PersonaCard`, `PersonaForm` (interview checkboxes), `DeletePersonaButton`; actions in `actions/persona.ts`; queries `getPersonasByProject(projectId, search)` (search over name/role/occupation/goals/frustrations; includes `_count.interviews`), `getPersonaById` (cached; includes project and linked interviews).
 - **Flow:** on update the action runs `db.$transaction([personaInterview.deleteMany, persona.update({... interviews.create})])`, replacing the link set atomically. Empty optional fields are stored as `null`.
-- **Edge cases / limits:** `interviewIds` are **not checked to belong to the persona's project** (a crafted POST could link another project's interview). `projectId` on update is taken from the hidden form field, not re-read from the DB.
+- **Edge cases / limits:** every id in `interviewIds` is checked to belong to the persona's project (`interviewsBelongToProject`, `src/server/actions/links.ts`) before any write; a mismatch returns `{ message }` and writes nothing. `updatePersona` loads the persona and uses its stored `projectId` (not the form's), returning `{ message }` if it no longer exists.
 
 ### 5.4 Findings
 
 - **What:** recurring pain point: title (≤200), description (≤10,000), category (`KYC|ONBOARDING|RESEARCH|PORTFOLIO|SUPPORT|OTHER`, default OTHER), severity (`LOW|MEDIUM|HIGH|CRITICAL`, default MEDIUM), optional single source interview.
 - **Files:** `src/app/(app)/findings/**`; `FindingCard`, `FindingForm`, `DeleteFindingButton`, `SeverityBadge`, `CategoryBadge`; actions in `actions/finding.ts`; queries `getFindingsByProject(projectId, {category, severity, personaId, search})`, `getFindingById` (cached; includes project, interview, recommendations).
 - **Flow:** list sorted **most severe first, newest first within a severity** — SQL orders by `createdAt desc`, then JS stable-sorts by `SEVERITY_RANK` (enum declaration order) because SQLite would sort the enum text alphabetically. The persona filter means "findings whose *source interview* is linked to this persona" (`interview: { personas: { some: { personaId } } }`); findings with no interview never match it. Detail page shows linked recommendations and source interview.
-- **Known bugs on the detail page** (`findings/[id]/page.tsx`): "Create first recommendation" links to `/recommendations/new?findingId=<id>` **without `projectId`**, and `recommendations/new/page.tsx` immediately `redirect`s to `/recommendations` when `projectId` is missing. "View in board" links to `/recommendations?findingId=<id>`, but that page ignores `findingId` and needs `projectId`. Both links therefore do not do what they say (fix: append `&projectId=${finding.projectId}` to the first; drop or implement `findingId` on the board).
-- **Edge cases:** `interviewId` is not checked to belong to the finding's project. Deleting a finding cascades to its recommendations and removes journey-stage links.
+- **Detail-page links:** "Create first recommendation" goes to `/recommendations/new?projectId=<finding.projectId>&findingId=<finding.id>`; "View in board" goes to `/recommendations?projectId=<finding.projectId>` (the board has no per-finding filter).
+- **Edge cases:** `createFinding`/`updateFinding` verify `interviewId` belongs to the finding's project; `updateFinding` uses the stored `projectId` and returns `{ message }` if the finding is gone. Deleting a finding cascades to its recommendations and removes journey-stage links.
 
 ### 5.5 Recommendations
 
@@ -275,8 +278,8 @@ InvestorLens/
 - **Untrusted-output safeguards** (`src/server/ai/transcript.ts`): reply Zod-validated (`modelOutputSchema`); suggestions with empty quote/summary dropped; capped at `MAX_SUGGESTIONS = 15`; a `matchedFindingId` not in the project's finding set becomes `null` (= "new finding"); blank title falls back to the first 120 chars of the summary; each quote is checked against the whitespace/case-normalized transcript and flagged `verbatim: false` if absent; the prompt tells the model to treat the transcript as data and ignore instructions in it.
 - **Step 2 — review** (`SuggestionReview` inside `TranscriptExtractor.tsx`): per suggestion the user chooses approve/reject; for "new" suggestions title, category and severity are editable before approving; unverbatim quotes show a warning. The "Save N approved" button is disabled at 0 approvals.
 - **Step 3 — apply** (`applySuggestions`): decisions arrive as JSON (`decisionsJson`, only approved ones: `{kind:"match", findingId, quote}` or `{kind:"new", title, description, category, severity}`), are Zod-validated (1–50), and every `findingId`/`interviewId` is re-verified against the project. Matches append `\n\nSupporting quote (<candidateName>): "<quote>"` to the finding's description (the interview name appears only if an interview was selected); several quotes for one finding accumulate. New ones are created with the selected `interviewId`. All writes run in one `db.$transaction`, then it redirects to `/findings?projectId=…`.
-- **Client details:** upload accepts `.txt/.md` up to 200,000 bytes (`MAX_FILE_BYTES`), read in the browser with `File.text()`; the server limit is 60,000 *characters*, so a large-but-allowed file can still be rejected server-side with the inline error. The interview select is live state, so changing it after extraction changes which interview the approved suggestions are linked to. `CATEGORY_OPTIONS` in `TranscriptExtractor.tsx` is a hard-coded copy of the `FindingCategory` values.
-- **Self-check:** `npx tsx src/server/ai/transcript.check.ts` (assertions on envelope parsing, verbatim flag, id downgrading, caps, error extraction, missing key). It is not wired into `package.json` scripts. It passed when run on 2026-09-30.
+- **Client details:** upload accepts `.txt/.md`, read in the browser with `File.text()`; if the text exceeds `MAX_TRANSCRIPT_CHARS` (60,000, mirroring the server limit in `extractSchema`, which can't be exported from a `"use server"` file) an inline message is shown and the file is not loaded. While suggestions are under review the interview select is disabled (a hidden input carries its value into re-submitted forms) with a "Start over" button that reloads the page, so approved findings can't silently relink. `CATEGORY_OPTIONS` in `TranscriptExtractor.tsx` is a hard-coded copy of the `FindingCategory` values.
+- **Self-check:** `npm run check:ai` (assertions on envelope parsing, verbatim flag, id downgrading, caps, error extraction, missing key); it runs in CI and passed on 2026-10-01.
 - **Limits (by design, per README/PRD):** one transcript at a time; findings only (no persona/journey suggestions); no cross-transcript clustering; quotes are appended to description text (a `ponytail:` comment in `actions/ai.ts` notes a `FindingEvidence` table as the upgrade path).
 
 ### 5.12 Seed data
@@ -316,7 +319,7 @@ Datasource `sqlite`; generator `prisma-client-js`. Enums are real Prisma enums (
 | `journey_maps` (JourneyMap) | projectId, title, description? | → Project (cascade); ← JourneyStage[] | (projectId) |
 | `journey_stages` (JourneyStage) | journeyMapId, position Int, name, description?, painType?, frictionRating Int=0 | → JourneyMap (cascade); implicit M2M with Finding (`_FindingToJourneyStage`) and Persona (`_JourneyStageToPersona`) | unique (journeyMapId, position) |
 
-Constraints not enforced by the database (only by Zod): frictionRating 0–5, age ≥ 18, string lengths, "linked entities belong to the same project" (enforced in `journeyMap` and `ai` actions only).
+Constraints not enforced by the database (only by Zod): frictionRating 0–5, age ≥ 18, string lengths, "linked entities belong to the same project" (enforced in the `journeyMap`, `ai`, `finding` and `persona` actions, not in the database).
 
 Migrations: `20260923101256_init` (full schema) and `20260923103402_journey_stage_links` (drops `journey_maps.personaId` and `journey_stages.findingId`; adds the two implicit M2M tables). The local DB has both applied. `migration_lock.toml` is present.
 
@@ -392,6 +395,8 @@ All are `"use server"` functions. Form actions have the signature `(prev: Action
 | `extractSuggestions` (`ai.ts`) | projectId, interviewId?, transcript | Gemini call, **no DB writes** | — | `{suggestions, runId}` |
 | `applySuggestions` | projectId, interviewId?, decisionsJson | transaction: update/create findings | `/findings`, project | redirect `/findings?projectId=` |
 
+`updateInterview`, `updatePersona` and `updateFinding` load the existing record, use its stored `projectId` instead of the form's, and return `{ message }` if it no longer exists (as `updateJourneyMap` does).
+
 Zod limits per entity are listed in §5; schemas live in `src/lib/validations/*.ts` (and inline `extractSchema`/`applySchema` in `actions/ai.ts`).
 
 ### 7.4 Read layer
@@ -438,7 +443,7 @@ Other configuration:
 
 ## 10. Setup and running
 
-Commands below come from `package.json`, `prisma.config.ts` and `RUN_INSTRUCTIONS.txt`. On 2026-09-30 I ran `npx tsc --noEmit` (no errors), `npx eslint` (no output/errors), `npx tsx src/server/ai/transcript.check.ts` (passed) and `npm run build` (succeeded). I did **not** run `npm install`, `migrate` or `db seed` (the seed would wipe the existing DB, which currently equals the seed data).
+Commands below come from `package.json`, `prisma.config.ts` and the README. On 2026-10-01 `npm run lint`, `typecheck`, `check:ai` and `build` all passed, and they also passed with `prisma/dev.db`, `.env` and `next-env.d.ts` moved aside (a clean checkout); the build creates an empty `prisma/dev.db` as a side effect because `src/lib/db.ts` opens the file at import. `npm install`, `migrate` and `db seed` were not re-run (the seed would wipe the existing DB, which currently equals the seed data).
 
 ```bash
 npm install                 # postinstall runs `prisma generate`
@@ -454,14 +459,16 @@ npm run dev                 # http://localhost:3000  (port busy: npm run dev -- 
 | `npm run build` | `next build` (Turbopack; TypeScript is checked as part of it) |
 | `npm run start` | `next start` (serves the build on :3000) |
 | `npm run lint` | `eslint` |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run check:ai` | `tsx src/server/ai/transcript.check.ts` |
 | `postinstall` | `prisma generate` |
 
-- **Type-check:** `npx tsc --noEmit` (no script defined).
-- **Tests:** none. The only automated check is the standalone AI script: `npx tsx src/server/ai/transcript.check.ts`.
+- **CI:** `.github/workflows/ci.yml` runs `npm ci`, `lint`, `typecheck`, `check:ai` and `build` on Node 22 for pushes and pull requests to `main`.
+- **Tests:** none beyond the standalone AI script (`npm run check:ai`).
 - **Reset DB:** `npx prisma migrate reset` then `npx prisma db seed` (destroys all data).
 - **Enable AI:** put `AI_FEATURES=on` and `GEMINI_API_KEY=<key>` in `.env`, restart.
-- **Troubleshooting** (from `RUN_INSTRUCTIONS.txt`): "Cannot find module better-sqlite3"/Prisma client errors → `npm install` + `npx prisma generate`; `/ai/transcripts` 404 → flag not set or server not restarted; "API key not valid" → key missing/whitespace/quotes.
-- **Deployment:** no deployment config exists (no Dockerfile, CI, Vercel config). Production = `npm run build && npm run start` on a machine with a writable persistent filesystem for `prisma/dev.db` and the native `better-sqlite3` module. **Inference, not documented in the repo:** a serverless/ephemeral-filesystem host would not suit this storage model.
+- **Troubleshooting** (also in the README): "Cannot find module better-sqlite3"/Prisma client errors → `npm install` + `npx prisma generate`; `/ai/transcripts` 404 → flag not set or server not restarted; "API key not valid" → key missing/whitespace/quotes.
+- **Deployment:** no deployment config exists (no Dockerfile or Vercel config; CI only lints, typechecks and builds). Production = `npm run build && npm run start` on a machine with a writable persistent filesystem for `prisma/dev.db` and the native `better-sqlite3` module. **Inference, not documented in the repo:** a serverless/ephemeral-filesystem host would not suit this storage model.
 
 ---
 
@@ -473,57 +480,55 @@ Projects, interviews, personas, findings, recommendations and journey maps each 
 
 ### 11.2 Stubbed / half-finished
 
-None found (no placeholder pages). Partial or intentionally minimal: the recommendations board is display-only (no drag/drop, no inline status change); the journey-map editor is list-based; project status is stored but not editable; `avatarUrl` is only a pasted URL (no upload).
+None found (no placeholder pages). Partial or intentionally minimal: the recommendations board is display-only (no drag/drop, no inline status change); the journey-map editor is list-based; `avatarUrl` is only a pasted URL (no upload).
 
-### 11.3 Known bugs and gaps (from reading the code; none reproduced at runtime)
+### 11.3 Bugs and gaps
 
-1. **Broken links on the finding detail page** — "Create first recommendation" lacks `projectId` (page redirects away) and "View in board" passes an ignored `findingId`. See §5.4.
-2. **Interview edit cannot clear optional fields** (`|| undefined` + Prisma ignores `undefined`). See §5.2.
-3. **Project status is not editable in the UI** (hidden input); `ARCHIVED`/`COMPLETED` can only be set in the DB. See §5.1.
-4. **Cross-project link integrity is not enforced** for `Persona.interviewIds` and `Finding.interviewId`, and `updateInterview/updatePersona/updateFinding` write `projectId` from the form rather than the DB (only `updateJourneyMap`, `createRecommendation` and the AI actions derive/verify it). A crafted POST could link or move records across projects; low risk for single-user local use, but the UI does not guard it.
-5. **AI review edge:** changing the interview dropdown after extraction re-targets where approved findings link (§5.11). A file up to 200 KB is accepted client-side but the server limit is 60,000 characters.
-6. `DeleteProjectButton` copy omits journey maps from the list of deleted items.
+The list below came from reading the code on 2026-09-30 (none reproduced at runtime). Items 1–7 were fixed on 2026-10-01; each fix passes typecheck, lint and build, and the "View in board" link was also confirmed in the rendered HTML. The form interactions (items 2, 3 and the AI UI) have not been exercised in a browser by anyone yet.
 
-### 11.4 AUDIT.md reconciliation
+**Fixed**
 
-`AUDIT.md` (dated 2026-09-23) describes a **much earlier** state of the repo (a founder-fundraising domain, stubbed interviews, no journey maps, no migrations folder, string-typed enums). The current code has resolved most of it, so the file misleads if read as current. Checked against the present code:
+1. **Finding detail links:** "Create first recommendation" now carries `projectId` and `findingId`; "View in board" links to the project's board (§5.4).
+2. **Interview edit could not clear optional fields:** now stores `null` (§5.2).
+3. **Project status was not editable:** `ProjectForm` has a status select in edit mode (§5.1).
+4. **Delete-project copy** now lists journey maps (§5.1).
+5. **AI UI edges:** the client rejects files over 60,000 characters with an inline message, and the interview select is locked while a review is open (§5.11).
+6. **Cross-project integrity:** `updateInterview`/`updatePersona`/`updateFinding` use the stored `projectId`; interview links on findings and personas are verified to belong to the same project (§5.3, §5.4, §7.3).
+7. **`Persona.avatarUrl`** only accepts http(s) URLs (§5.3).
 
-- **Fixed since the audit:** interview list/detail/new/edit UI exists; journey maps exist end to end; seed and schema now match the README (14/3/5/8/1); Prisma enums replace string columns; `Recommendation.projectId` and `Project.recommendations` exist; persona age range/occupation are real columns (no `JSON.parse(demographics)`); finding severity sort is correct (`SEVERITY_RANK`); dashboard no longer goes stale (`connection()` in the `(app)` layout; build output shows dynamic); delete failures show a toast (`useDeleteAction`); a `prisma/migrations/` folder now exists; the dead actions/queries it listed (`updateRecommendationStatus`, `getRecommendationsByStatus`, `searchInterviews`, and `ProjectStatCard.href`) no longer exist; README no longer has `create-next-app` boilerplate; fonts comment/`--font-geist-mono` issue is gone.
-- **Still true today:** the two broken finding→recommendation links; project status not editable; missing same-project validation for persona/finding links; `shadcn` (a CLI package) still listed under `dependencies`.
+**Still open**
 
-Recommendation: delete `AUDIT.md` or regenerate it, to avoid misleading future readers.
+- No authentication or authorization (by design for local use; see §7.1).
+- Project-boundary rules are enforced in server actions and Zod, not by the database (§6.1). Rows created before the checks existed are not audited.
+- List pages and `getDashboardData` load everything unbounded.
+- The Gemini call has no retries or backoff; a 503 from the API surfaces as a failed extraction (§8).
+- The AI self-check is the only automated test; the actions and queries are untested.
 
-### 11.5 History
+### 11.4 History
 
-The folder is **not a git repository** (no `.git`), so there is no commit history to summarize. Evidence of evolution: `AUDIT.md` (earlier, different-domain state) → two migrations dated 2026-09-23 (`init`, then `journey_stage_links`, which converted journey stages from single `findingId`/`personaId` columns to many-to-many links) → current code. The existing `.next` build folder predates this session; I rebuilt it with `npm run build`.
+The repo was put under git on 2026-10-01 (baseline commit "Initial commit: InvestorLens baseline"); earlier history is not recorded. Since the baseline, commits cover: finding-detail links, interview field clearing, the project status select, delete-project copy, the AI transcript UI fixes, project-integrity checks, hygiene (removed `robots.ts`, `sitemap.ts` and `NEXT_PUBLIC_APP_URL`, aligned Prisma versions, moved `shadcn` to devDependencies), CI and npm scripts, and this documentation pass. Two migrations dated 2026-09-23 (`init`, then `journey_stage_links`, which converted journey stages from single `findingId`/`personaId` columns to many-to-many links) precede it.
 
 ---
 
 ## 12. Suggested improvements
 
 **Correctness / UX**
-- Fix the two finding-detail links (append `projectId`; either support `findingId` on the board or remove the link).
-- In `updateInterview`, send `null` (not `undefined`) for emptied optional fields, as the other update actions do.
-- Add a status control to `ProjectForm` (archive/complete) or remove the dead Archived styling.
 - Add inline status change / drag-and-drop on the recommendations board.
 - Add pagination or a cap to list pages and `getDashboardData`'s `findMany` (everything is loaded unbounded).
 
 **Security / integrity (needed before any multi-user or hosted use)**
 - Add authentication and authorization; server actions are currently callable by anyone with network access.
-- In all update actions, read `projectId` from the DB (as `updateJourneyMap` does) and verify linked `interviewId`/`interviewIds` belong to that project.
 - Add a DB-level guard or enforce friction-range/age constraints consistently (SQLite has no `CHECK` through Prisma here).
-- If the AI feature is used with real data: add rate limiting/usage limits, retries with backoff, and a consent/retention note.
+- If the AI feature is used with real data: add rate limiting/usage limits, retries with backoff (the API has returned 503 "high demand"), and a consent/retention note.
 
 **Maintainability / technical debt**
-- Enum values are duplicated by hand in several places: `FindingForm` (severity/category `<option>`s), `RecommendationForm` (priority/status options), `TranscriptExtractor` `CATEGORY_OPTIONS`, `CategoryBadge` `CATEGORIES`, `dashboard.ts` `CATEGORY_LABEL`, plus `lib/tones.ts`. Derive them from the Prisma enums (`Object.values`) plus one label map per enum to prevent drift.
-- The DB path is defined twice (`prisma.config.ts` and `src/lib/db.ts`); consider a single `DATABASE_URL`.
-- Version skew: installed `prisma` CLI is 7.10.0 while `@prisma/client` is 7.8.0; pin them together. Move `shadcn` (CLI) to `devDependencies`.
-- Add tests: only the AI helper has a script, and it is not in `npm` scripts. Good first targets: Zod schemas, `getDashboardData` (`orderByEnum`, `weekStart`), `linksBelongToProject`, `toSuggestions`. Add a `tsc`/`test` script and CI.
-- Remove or regenerate the stale `AUDIT.md`.
+- Enum values are duplicated by hand in several places: `FindingForm` (severity/category `<option>`s), `RecommendationForm` (priority/status options), `ProjectForm` (status options), `TranscriptExtractor` `CATEGORY_OPTIONS`, `CategoryBadge` `CATEGORIES`, `dashboard.ts` `CATEGORY_LABEL`, plus `lib/tones.ts`. Derive them from the Prisma enums (`Object.values`) plus one label map per enum to prevent drift.
+- The DB path is defined twice (`prisma.config.ts` and `src/lib/db.ts`); consider a single `DATABASE_URL`. `src/lib/db.ts` also opens the database at import time.
+- Add tests: only the AI helper has a script (`npm run check:ai`). Good first targets: Zod schemas, `getDashboardData` (`orderByEnum`, `weekStart`), `linksBelongToProject`, `interviewsBelongToProject`, `toSuggestions`. Add a `test` script and a CI step.
 - `Persona.avatarUrl` loads an arbitrary remote image via `<img>` (leaks viewer IP to that host); consider restricting or removing.
 - No dark-mode theme actually wired up despite a `.dark` token block.
 
-**Features (per README "Future Improvements")**
+**Features**
 - Multi-user collaboration, cross-transcript AI clustering and persona/journey suggestions, a drag-and-drop journey editor, server-generated PDF, and a hosted database.
 
 ---
@@ -534,7 +539,7 @@ The folder is **not a git repository** (no `.git`), so there is no commit histor
 1. `prisma/schema.prisma` → add model/enums (with `projectId` + `onDelete: Cascade` and an index) → `npx prisma migrate dev --name <name>`.
 2. `src/lib/validations/<entity>.ts` — `create<Entity>Schema` and `update…Schema = create.extend({ id: z.string().uuid() })`.
 3. `src/server/queries/<entity>.ts` — list-by-project (with filters) and `getXById` wrapped in `cache()`.
-4. `src/server/actions/<entity>.ts` — `"use server"`; create/update as `(prev, formData) => ActionResult`; delete as `(id, projectId)`; `revalidatePath`; `redirect` on create/delete; return `{message}` on failure (never throw on delete). Verify any linked ids belong to the project.
+4. `src/server/actions/<entity>.ts` — `"use server"`; create/update as `(prev, formData) => ActionResult`; delete as `(id, projectId)`; `revalidatePath`; `redirect` on create/delete; return `{message}` on failure (never throw on delete). Verify any linked ids belong to the project (for interview links reuse `interviewsBelongToProject`; in update actions load the record and use its stored `projectId`).
 5. `src/components/features/<entity>/` — Card, Form (`useActionState` + `useActionToast`), DeleteButton (`useDeleteAction`).
 6. `src/app/(app)/<entity>/` — `page.tsx` (await `searchParams`, use `ProjectSelector` + `FilterBar`), `new/`, `[id]/`, `[id]/edit/`, `[id]/not-found.tsx`.
 7. Wire in: `LINKS` in `components/layout/AppNav.tsx`; `searchProject`; `getDashboardData`; report page; seed.
