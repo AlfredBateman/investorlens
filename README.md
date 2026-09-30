@@ -2,7 +2,7 @@
 
 A local-first UX research workspace that links interviews to findings, recommendations, personas and journey maps, with an opt-in AI assistant that suggests pain points from transcripts but never saves anything a human hasn't approved.
 
-[![CI](https://github.com/<owner>/investorlens/actions/workflows/ci.yml/badge.svg)](https://github.com/<owner>/investorlens/actions/workflows/ci.yml)
+[![CI](https://github.com/AlfredBateman/investorlens/actions/workflows/ci.yml/badge.svg)](https://github.com/AlfredBateman/investorlens/actions/workflows/ci.yml)
 
 There is no hosted demo. It runs on your own machine, and the repo includes a seeded sample study (a fictional retail-investor UX project) so every screen has data from the first launch.
 
