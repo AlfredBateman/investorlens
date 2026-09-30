@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "check:ai": "tsx src/server/ai/transcript.check.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
