@@ -16,7 +16,10 @@ export const createPersonaSchema = z.object({
     .string()
     .min(1, "Role is required.")
     .max(100, "Role must be 100 characters or fewer."),
-  avatarUrl: z.string().url("Must be a valid URL.").optional().nullable(),
+  avatarUrl: z
+    .url({ protocol: /^https?$/, message: "Must be an http:// or https:// URL." })
+    .optional()
+    .nullable(),
   ageRange: z.string().max(50, "Age range must be 50 characters or fewer.").optional().nullable(),
   occupation: z.string().max(100, "Occupation must be 100 characters or fewer.").optional().nullable(),
   goals: z.string().min(1, "Goals are required."),

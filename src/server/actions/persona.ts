@@ -14,6 +14,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { createPersonaSchema, updatePersonaSchema } from "@/lib/validations/persona";
+import { INVALID_INTERVIEW_LINK, interviewsBelongToProject } from "./links";
 import type { ActionResult } from "./types";
 
 export type { ActionResult } from "./types";
@@ -43,6 +44,9 @@ export async function createPersona(
 
   let personaId: string;
   try {
+    if (!(await interviewsBelongToProject(personaData.projectId, ids ?? []))) {
+      return { message: INVALID_INTERVIEW_LINK };
+    }
     const persona = await db.persona.create({
       data: {
         ...personaData,
@@ -85,9 +89,20 @@ export async function updatePersona(
     return { error: parsed.error.flatten().fieldErrors };
   }
 
+  // The persona's project is fixed after creation; trust the DB, not the hidden field.
   const { id, interviewIds: ids, ...personaData } = parsed.data;
+  let projectId: string;
 
   try {
+    const existing = await db.persona.findUnique({ where: { id }, select: { projectId: true } });
+    if (!existing) {
+      return { message: "This persona no longer exists." };
+    }
+    projectId = existing.projectId;
+    if (!(await interviewsBelongToProject(projectId, ids ?? []))) {
+      return { message: INVALID_INTERVIEW_LINK };
+    }
+
     // Atomic transaction: clear old junction rows, then insert new ones
     await db.$transaction([
       db.personaInterview.deleteMany({ where: { personaId: id } }),
@@ -95,6 +110,7 @@ export async function updatePersona(
         where: { id },
         data: {
           ...personaData,
+          projectId,
           ...(ids?.length && {
             interviews: {
               create: ids.map((interviewId) => ({ interviewId })),
@@ -108,7 +124,7 @@ export async function updatePersona(
   }
 
   revalidatePath(`/personas/${id}`);
-  revalidatePath(`/projects/${personaData.projectId}`);
+  revalidatePath(`/projects/${projectId}`);
   revalidatePath("/personas");
 
   return { message: "Persona updated successfully.", success: true };

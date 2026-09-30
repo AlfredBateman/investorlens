@@ -14,6 +14,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { createFindingSchema, updateFindingSchema } from "@/lib/validations/finding";
+import { INVALID_INTERVIEW_LINK, interviewsBelongToProject } from "./links";
 import type { ActionResult } from "./types";
 
 export type { ActionResult } from "./types";
@@ -38,6 +39,10 @@ export async function createFinding(
 
   let findingId: string;
   try {
+    const { projectId, interviewId } = parsed.data;
+    if (interviewId && !(await interviewsBelongToProject(projectId, [interviewId]))) {
+      return { message: INVALID_INTERVIEW_LINK };
+    }
     const finding = await db.finding.create({ data: parsed.data });
     findingId = finding.id;
   } catch {
@@ -68,15 +73,25 @@ export async function updateFinding(
     return { error: parsed.error.flatten().fieldErrors };
   }
 
-  const { id, ...data } = parsed.data;
+  // The finding's project is fixed after creation; trust the DB, not the hidden field.
+  const { id, ...fields } = parsed.data;
+  let projectId: string;
   try {
-    await db.finding.update({ where: { id }, data });
+    const existing = await db.finding.findUnique({ where: { id }, select: { projectId: true } });
+    if (!existing) {
+      return { message: "This finding no longer exists." };
+    }
+    projectId = existing.projectId;
+    if (fields.interviewId && !(await interviewsBelongToProject(projectId, [fields.interviewId]))) {
+      return { message: INVALID_INTERVIEW_LINK };
+    }
+    await db.finding.update({ where: { id }, data: { ...fields, projectId } });
   } catch {
     return { message: "Failed to update finding. Please try again." };
   }
 
   revalidatePath("/findings");
-  revalidatePath(`/projects/${data.projectId}`);
+  revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/findings/${id}`);
 
   return { message: "Finding updated successfully.", success: true };

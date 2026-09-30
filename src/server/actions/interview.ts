@@ -78,15 +78,22 @@ export async function updateInterview(
     return { error: parsed.error.flatten().fieldErrors };
   }
 
+  // The interview's project is fixed after creation; trust the DB, not the hidden field.
   const { id, ...data } = parsed.data;
+  let projectId: string;
   try {
-    await db.interview.update({ where: { id }, data });
+    const existing = await db.interview.findUnique({ where: { id }, select: { projectId: true } });
+    if (!existing) {
+      return { message: "This interview no longer exists." };
+    }
+    projectId = existing.projectId;
+    await db.interview.update({ where: { id }, data: { ...data, projectId } });
   } catch {
     return { message: "Failed to update interview. Please try again." };
   }
 
   revalidatePath(`/interviews/${id}`);
-  revalidatePath(`/projects/${data.projectId}`);
+  revalidatePath(`/projects/${projectId}`);
   revalidatePath("/interviews");
 
   return { message: "Interview updated successfully.", success: true };
