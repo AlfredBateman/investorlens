@@ -1,0 +1,214 @@
+// Prisma enums are supported on SQLite (stored as TEXT, validated by the client).
+
+datasource db {
+  provider = "sqlite"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum ProjectStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum InvestingPlatform {
+  ZERODHA
+  GROWW
+  UPSTOX
+  ANGEL_ONE
+  OTHER
+}
+
+enum FindingCategory {
+  KYC
+  ONBOARDING
+  RESEARCH
+  PORTFOLIO
+  SUPPORT
+  OTHER
+}
+
+enum SeverityLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum RecommendationStatus {
+  PROPOSED
+  APPROVED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum RecommendationPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+// Kind of problem a participant hits at a journey stage.
+enum PainPointType {
+  CONFUSION
+  FRICTION
+  DELAY
+  UNCERTAINTY
+  OTHER
+}
+
+model Project {
+  id          String        @id @default(uuid())
+  name        String
+  description String?
+  status      ProjectStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  interviews      Interview[]
+  personas        Persona[]
+  findings        Finding[]
+  recommendations Recommendation[]
+  journeyMaps     JourneyMap[]
+
+  @@map("projects")
+}
+
+model Interview {
+  id                String            @id @default(uuid())
+  projectId         String
+  candidateName     String
+  candidateRole     String? // participant's occupation
+  candidateCompany  String?
+  age               Int
+  platform          InvestingPlatform
+  investingBehavior String?
+  goals             String?
+  frustrations      String?
+  notesText         String
+  dateConducted     DateTime
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  project  Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  findings Finding[]
+  personas PersonaInterview[]
+
+  @@index([projectId, dateConducted])
+  @@map("interviews")
+}
+
+model Persona {
+  id           String   @id @default(uuid())
+  projectId    String
+  name         String
+  role         String
+  avatarUrl    String?
+  ageRange     String?
+  occupation   String?
+  goals        String
+  frustrations String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  project       Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  interviews    PersonaInterview[]
+  journeyStages JourneyStage[]
+
+  @@index([projectId])
+  @@map("personas")
+}
+
+// Junction table: which interviews a persona was derived from.
+model PersonaInterview {
+  personaId   String
+  interviewId String
+
+  persona   Persona   @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  interview Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+
+  @@id([personaId, interviewId])
+  @@index([interviewId])
+  @@map("persona_interviews")
+}
+
+model Finding {
+  id          String          @id @default(uuid())
+  projectId   String
+  interviewId String? // primary source interview
+  title       String
+  description String
+  category    FindingCategory @default(OTHER)
+  severity    SeverityLevel   @default(MEDIUM)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  project         Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  interview       Interview?       @relation(fields: [interviewId], references: [id], onDelete: SetNull)
+  recommendations Recommendation[]
+  journeyStages   JourneyStage[]
+
+  @@index([projectId, category])
+  @@index([projectId, severity])
+  @@index([interviewId])
+  @@map("findings")
+}
+
+model Recommendation {
+  // projectId is always copied from the finding's project by the server action.
+  id          String                 @id @default(uuid())
+  projectId   String
+  findingId   String
+  title       String
+  description String
+  status      RecommendationStatus   @default(PROPOSED)
+  priority    RecommendationPriority @default(MEDIUM)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  finding Finding @relation(fields: [findingId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, status])
+  @@index([findingId])
+  @@map("recommendations")
+}
+
+model JourneyMap {
+  id          String   @id @default(uuid())
+  projectId   String
+  title       String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  stages  JourneyStage[]
+
+  @@index([projectId])
+  @@map("journey_maps")
+}
+
+model JourneyStage {
+  id             String         @id @default(uuid())
+  journeyMapId   String
+  position       Int
+  name           String
+  description    String?
+  painType       PainPointType?
+  // 0 = no friction … 5 = severe. Range enforced by Zod (SQLite has no CHECK via Prisma).
+  frictionRating Int            @default(0)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  journeyMap JourneyMap @relation(fields: [journeyMapId], references: [id], onDelete: Cascade)
+  // Implicit many-to-many: link rows are removed automatically when a stage is deleted.
+  findings   Finding[]
+  personas   Persona[]
+
+  @@unique([journeyMapId, position])
+  @@map("journey_stages")
+}
