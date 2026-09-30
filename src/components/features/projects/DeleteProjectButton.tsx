@@ -54,8 +54,8 @@ export function DeleteProjectButton({ projectId, projectName }: Props) {
           <DialogDescription>
             This will permanently delete{" "}
             <span className="font-medium text-foreground">{projectName}</span> and all
-            associated interviews, findings, personas, and recommendations. This action
-            cannot be undone.
+            associated interviews, findings, personas, recommendations, and journey maps.
+            This action cannot be undone.
           </DialogDescription>
         </DialogHeader>
 
