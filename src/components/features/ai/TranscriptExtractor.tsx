@@ -8,7 +8,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { SeverityBadge } from "@/components/features/findings/SeverityBadge";
 import { useActionToast } from "@/hooks/use-action-toast";
-import { toast } from "@/components/ui/toast";
 import { applySuggestions, extractSuggestions, type ExtractState } from "@/server/actions/ai";
 import type { ActionResult } from "@/server/actions/types";
 import type { Suggestion } from "@/server/ai/transcript";
@@ -23,7 +22,8 @@ type Props = {
 };
 
 const CATEGORY_OPTIONS = ["KYC", "ONBOARDING", "RESEARCH", "PORTFOLIO", "SUPPORT", "OTHER"] as const;
-const MAX_FILE_BYTES = 200_000;
+// Mirrors the 60,000-character limit in extractSchema (src/server/actions/ai.ts, a "use server" file that can't export it).
+const MAX_TRANSCRIPT_CHARS = 60_000;
 
 const selectClasses =
   "h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -32,14 +32,21 @@ export function TranscriptExtractor({ projectId, interviews, findings }: Props) 
   const [state, extractAction, extracting] = useActionState<ExtractState, FormData>(extractSuggestions, {});
   const [transcript, setTranscript] = useState("");
   const [interviewId, setInterviewId] = useState("");
+  const [fileError, setFileError] = useState("");
+  // Approved findings link to `interviewId`, so it must not change once suggestions are on screen.
+  const reviewOpen = !!state.suggestions?.length;
 
   async function loadFile(file: File | undefined) {
     if (!file) return;
-    if (file.size > MAX_FILE_BYTES) {
-      toast.error("That file is too large. Paste an excerpt instead (60,000 characters max).");
+    const text = await file.text();
+    if (text.length > MAX_TRANSCRIPT_CHARS) {
+      setFileError(
+        `That file has ${text.length.toLocaleString()} characters; the limit is ${MAX_TRANSCRIPT_CHARS.toLocaleString()}. Paste an excerpt instead.`
+      );
       return;
     }
-    setTranscript(await file.text());
+    setFileError("");
+    setTranscript(text);
   }
 
   return (
@@ -52,12 +59,15 @@ export function TranscriptExtractor({ projectId, interviews, findings }: Props) 
             <Label htmlFor="interviewId">
               Interview <span className="text-xs font-normal text-muted-foreground">(optional)</span>
             </Label>
+            {/* A disabled select isn't submitted, so the value rides along in a hidden input. */}
+            <input type="hidden" name="interviewId" value={interviewId} />
             <select
               id="interviewId"
-              name="interviewId"
               value={interviewId}
               onChange={(e) => setInterviewId(e.target.value)}
-              className={selectClasses}
+              disabled={reviewOpen}
+              aria-describedby={reviewOpen ? "interview-locked" : undefined}
+              className={cn(selectClasses, "disabled:cursor-not-allowed disabled:opacity-50")}
             >
               <option value="">Not linked to an interview</option>
               {interviews.map((i) => (
@@ -66,6 +76,14 @@ export function TranscriptExtractor({ projectId, interviews, findings }: Props) 
                 </option>
               ))}
             </select>
+            {reviewOpen && (
+              <p id="interview-locked" className="text-xs text-muted-foreground">
+                Locked while you review suggestions.{" "}
+                <button type="button" onClick={() => window.location.reload()} className="text-primary underline-offset-2 hover:underline">
+                  Start over
+                </button>
+              </p>
+            )}
             {state.error?.interviewId && <p className="text-xs text-destructive">{state.error.interviewId[0]}</p>}
           </div>
 
@@ -82,6 +100,11 @@ export function TranscriptExtractor({ projectId, interviews, findings }: Props) 
                 onChange={(e) => loadFile(e.target.files?.[0])}
               />
             </label>
+            {fileError && (
+              <p role="alert" className="text-xs text-destructive">
+                {fileError}
+              </p>
+            )}
           </div>
         </div>
 
@@ -101,7 +124,7 @@ export function TranscriptExtractor({ projectId, interviews, findings }: Props) 
             className="max-h-96"
           />
           <p id="transcript-help" className="text-xs text-muted-foreground">
-            {transcript.length.toLocaleString()} / 60,000 characters
+            {transcript.length.toLocaleString()} / {MAX_TRANSCRIPT_CHARS.toLocaleString()} characters
           </p>
           {state.error?.transcript && <p className="text-xs text-destructive">{state.error.transcript[0]}</p>}
         </div>
