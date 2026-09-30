@@ -16,16 +16,16 @@ export const createInterviewSchema = z.object({
   candidateRole: z
     .string()
     .max(100, "Occupation must be 100 characters or fewer.")
-    .optional(),
+    .nullish(),
   candidateCompany: z
     .string()
     .max(150, "Company must be 150 characters or fewer.")
-    .optional(),
+    .nullish(),
   age: z.coerce.number().int().min(18, "Participants must be 18 or older.").max(100),
   platform: z.enum(InvestingPlatform),
-  investingBehavior: z.string().max(2000).optional(),
-  goals: z.string().max(2000).optional(),
-  frustrations: z.string().max(2000).optional(),
+  investingBehavior: z.string().max(2000).nullish(),
+  goals: z.string().max(2000).nullish(),
+  frustrations: z.string().max(2000).nullish(),
   dateConducted: z.coerce.date({ message: "Interview date is required." }),
   notesText: z.string().min(1, "Interview notes cannot be empty."),
 });
