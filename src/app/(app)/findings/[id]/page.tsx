@@ -119,7 +119,7 @@ export default async function FindingDetailPage({
                       {rec.description}
                     </p>
                     <Link
-                      href={`/recommendations?findingId=${finding.id}`}
+                      href={`/recommendations?projectId=${finding.projectId}`}
                       className="text-xs text-primary hover:underline mt-2 self-start flex items-center gap-1"
                     >
                       View in board <ExternalLink className="size-3" />
@@ -132,7 +132,7 @@ export default async function FindingDetailPage({
                 <Lightbulb className="size-6 text-muted-foreground mb-2" aria-hidden />
                 <p className="text-xs text-muted-foreground">No recommendations yet.</p>
                 <Link
-                  href={`/recommendations/new?findingId=${finding.id}`}
+                  href={`/recommendations/new?projectId=${finding.projectId}&findingId=${finding.id}`}
                   className="text-xs text-primary hover:underline mt-1"
                 >
                   Create first recommendation
