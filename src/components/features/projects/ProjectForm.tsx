@@ -32,6 +32,9 @@ type Props = {
 
 const INITIAL: ActionResult = {};
 
+const selectClasses =
+  "h-10 w-full rounded-lg border border-input bg-background px-3 py-1 text-base transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-card dark:disabled:bg-input/80 [&>option]:bg-card [&>option]:text-foreground";
+
 export function ProjectForm({ project, cancelHref }: Props) {
   const action = project ? updateProject : createProject;
   const [state, formAction, isPending] = useActionState(action, INITIAL);
@@ -41,12 +44,7 @@ export function ProjectForm({ project, cancelHref }: Props) {
 
   return (
     <form id="project-form" action={formAction} className="space-y-5" noValidate>
-      {project && (
-        <>
-          <input type="hidden" name="id" value={project.id} />
-          <input type="hidden" name="status" value={project.status} />
-        </>
-      )}
+      {project && <input type="hidden" name="id" value={project.id} />}
 
       <div className="space-y-1.5">
         <Label htmlFor="name" className={cn(errors?.name && "text-destructive")}>
@@ -93,6 +91,31 @@ export function ProjectForm({ project, cancelHref }: Props) {
           </p>
         )}
       </div>
+
+      {project && (
+        <div className="space-y-1.5">
+          <Label htmlFor="status" className={cn(errors?.status && "text-destructive")}>
+            Status
+          </Label>
+          <select
+            id="status"
+            name="status"
+            defaultValue={project.status}
+            aria-invalid={!!errors?.status}
+            aria-describedby={errors?.status ? "status-error" : undefined}
+            className={selectClasses}
+          >
+            <option value="ACTIVE">Active</option>
+            <option value="COMPLETED">Completed</option>
+            <option value="ARCHIVED">Archived</option>
+          </select>
+          {errors?.status && (
+            <p id="status-error" className="text-xs text-destructive">
+              {errors.status[0]}
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="flex items-center gap-3 pt-1">
         <Button type="submit" disabled={isPending} id="submit-project-form">
