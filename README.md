@@ -166,7 +166,6 @@ None are required for the core app. `.env.example` documents all of them:
 | `AI_FEATURES` | No | Set to `on` to enable `/ai/transcripts`. Any other value (or unset) keeps it off. |
 | `GEMINI_API_KEY` | Only if `AI_FEATURES=on` | Your Google Gemini API key. Read server-side only; never sent to the browser, never hardcoded. |
 | `GEMINI_MODEL` | No | Overrides the default model (`gemini-3.8-flash`). |
-| `NEXT_PUBLIC_APP_URL` | No | Base URL used only when generating `sitemap.xml`. Irrelevant for local use. |
 
 ---
 

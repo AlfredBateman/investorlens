@@ -94,7 +94,7 @@ Key architectural decisions visible in code:
 
 - **Project scoping via URL.** Almost every page is scoped by `?projectId=<uuid>` (chosen through `ProjectSelector`). Without a project, list pages show a "No project selected" empty state. The dashboard is the one exception (works cross-project).
 - **All state lives in the URL or the DB.** Filters, search text and selected project are search params (`useFilterParams`); there is no client store.
-- **Everything under `(app)` renders per request.** `src/app/(app)/layout.tsx` calls `await connection()` (from `next/server`) so SQLite reads are never baked in at build time. `next build` output confirms all `(app)` pages and `/report/[projectId]` are `ƒ (Dynamic)`; only `/`, `/_not-found`, `/robots.txt`, `/sitemap.xml` are static.
+- **Everything under `(app)` renders per request.** `src/app/(app)/layout.tsx` calls `await connection()` (from `next/server`) so SQLite reads are never baked in at build time. `next build` output confirms all `(app)` pages and `/report/[projectId]` are `ƒ (Dynamic)`; only `/` and `/_not-found` are static.
 - **Mutations return `ActionResult`** (`src/server/actions/types.ts`): `{ error?: Record<field,string[]>, message?: string, success?: boolean }`. Field errors render inline; `message` is toasted by `useActionToast`. Successful create/delete actions `redirect()`; successful updates return `{ success: true }`.
 - **Delete actions `redirect()` on success and *return* `{message}` on failure** (not throw) because production builds strip messages from thrown server-action errors (comment in `src/hooks/use-delete-action.ts`).
 - **Report page lives outside `(app)`** (`src/app/report/[projectId]/page.tsx`) so it has no sidebar; print CSS is in `globals.css` (`@page` margin 16mm, `print-color-adjust: exact`).
@@ -133,7 +133,6 @@ InvestorLens/
    │  ├─ page.tsx            redirect("/dashboard")
    │  ├─ error.tsx           Root error boundary
    │  ├─ globals.css         Tailwind v4 theme + DESIGN.md tokens + print rules
-   │  ├─ robots.ts, sitemap.ts   SEO files (base URL NEXT_PUBLIC_APP_URL, default https://investorlens.app)
    │  ├─ (app)/              Route group with the sidebar shell (layout.tsx, loading.tsx, error.tsx)
    │  │  ├─ dashboard/       page.tsx, loading.tsx
    │  │  ├─ search/          page.tsx
@@ -346,7 +345,7 @@ Derived/aggregated data (dashboard stats, report summary sentences, weekly bucke
 
 ### 7.1 HTTP routes
 
-There are **no custom API route handlers** (`route.ts`) — only page routes and the Next metadata files (`/robots.txt`, `/sitemap.xml`, `/favicon.ico`). Server Actions are invoked by Next's own POST mechanism, not a documented API.
+There are **no custom API route handlers** (`route.ts`) — only page routes and the `/favicon.ico` metadata file. Server Actions are invoked by Next's own POST mechanism, not a documented API.
 
 **Auth:** none anywhere. No session, token, role check or rate limit. Anyone who can reach the server can read and mutate all data, including by POSTing to the Server Actions.
 
@@ -365,7 +364,6 @@ There are **no custom API route handlers** (`route.ts`) — only page routes and
 | `/journey-maps`, `/journey-maps/new?projectId=`, `/journey-maps/[id]`, `/journey-maps/[id]/edit` | `(app)/journey-maps/**` | same |
 | `/ai/transcripts` | `(app)/ai/transcripts/page.tsx` | 404 unless `AI_FEATURES=on` |
 | `/report/[projectId]` | `report/[projectId]/page.tsx` | outside the app shell |
-| `/robots.txt`, `/sitemap.xml` | `app/robots.ts`, `app/sitemap.ts` | sitemap lists 8 list routes under `NEXT_PUBLIC_APP_URL` (default `https://investorlens.app`) |
 
 ### 7.3 Server Actions (the write API)
 
@@ -425,7 +423,6 @@ Environment variables (names and purpose only; `.env` is git-ignored, `.env.exam
 | `AI_FEATURES` | `src/lib/flags.ts` | `on` enables `/ai/transcripts`, its nav link and the AI actions; anything else keeps it off |
 | `GEMINI_API_KEY` | `src/server/ai/gemini.ts` | Gemini API key, server-side only |
 | `GEMINI_MODEL` | `src/server/ai/gemini.ts` | Overrides default model |
-| `NEXT_PUBLIC_APP_URL` | `src/app/sitemap.ts` | Base URL for `sitemap.xml` only |
 
 Note: `.env` is read when the server starts, and `GEMINI_MODEL` is evaluated at module load (`export const GEMINI_MODEL`), so restart after changing either.
 
@@ -485,15 +482,14 @@ None found (no placeholder pages). Partial or intentionally minimal: the recomme
 3. **Project status is not editable in the UI** (hidden input); `ARCHIVED`/`COMPLETED` can only be set in the DB. See §5.1.
 4. **Cross-project link integrity is not enforced** for `Persona.interviewIds` and `Finding.interviewId`, and `updateInterview/updatePersona/updateFinding` write `projectId` from the form rather than the DB (only `updateJourneyMap`, `createRecommendation` and the AI actions derive/verify it). A crafted POST could link or move records across projects; low risk for single-user local use, but the UI does not guard it.
 5. **AI review edge:** changing the interview dropdown after extraction re-targets where approved findings link (§5.11). A file up to 200 KB is accepted client-side but the server limit is 60,000 characters.
-6. `robots.ts`/`sitemap.ts` advertise `https://investorlens.app` (default) for what is a local app.
-7. `DeleteProjectButton` copy omits journey maps from the list of deleted items.
+6. `DeleteProjectButton` copy omits journey maps from the list of deleted items.
 
 ### 11.4 AUDIT.md reconciliation
 
 `AUDIT.md` (dated 2026-09-23) describes a **much earlier** state of the repo (a founder-fundraising domain, stubbed interviews, no journey maps, no migrations folder, string-typed enums). The current code has resolved most of it, so the file misleads if read as current. Checked against the present code:
 
 - **Fixed since the audit:** interview list/detail/new/edit UI exists; journey maps exist end to end; seed and schema now match the README (14/3/5/8/1); Prisma enums replace string columns; `Recommendation.projectId` and `Project.recommendations` exist; persona age range/occupation are real columns (no `JSON.parse(demographics)`); finding severity sort is correct (`SEVERITY_RANK`); dashboard no longer goes stale (`connection()` in the `(app)` layout; build output shows dynamic); delete failures show a toast (`useDeleteAction`); a `prisma/migrations/` folder now exists; the dead actions/queries it listed (`updateRecommendationStatus`, `getRecommendationsByStatus`, `searchInterviews`, and `ProjectStatCard.href`) no longer exist; README no longer has `create-next-app` boilerplate; fonts comment/`--font-geist-mono` issue is gone.
-- **Still true today:** the two broken finding→recommendation links; project status not editable; missing same-project validation for persona/finding links; `shadcn` (a CLI package) still listed under `dependencies`; `robots.ts`/`sitemap.ts` still present.
+- **Still true today:** the two broken finding→recommendation links; project status not editable; missing same-project validation for persona/finding links; `shadcn` (a CLI package) still listed under `dependencies`.
 
 Recommendation: delete `AUDIT.md` or regenerate it, to avoid misleading future readers.
 
@@ -523,7 +519,7 @@ The folder is **not a git repository** (no `.git`), so there is no commit histor
 - The DB path is defined twice (`prisma.config.ts` and `src/lib/db.ts`); consider a single `DATABASE_URL`.
 - Version skew: installed `prisma` CLI is 7.10.0 while `@prisma/client` is 7.8.0; pin them together. Move `shadcn` (CLI) to `devDependencies`.
 - Add tests: only the AI helper has a script, and it is not in `npm` scripts. Good first targets: Zod schemas, `getDashboardData` (`orderByEnum`, `weekStart`), `linksBelongToProject`, `toSuggestions`. Add a `tsc`/`test` script and CI.
-- Remove or regenerate the stale `AUDIT.md`; drop `robots.ts`/`sitemap.ts` (or make their base URL meaningful).
+- Remove or regenerate the stale `AUDIT.md`.
 - `Persona.avatarUrl` loads an arbitrary remote image via `<img>` (leaks viewer IP to that host); consider restricting or removing.
 - No dark-mode theme actually wired up despite a `.dark` token block.
 
@@ -541,7 +537,7 @@ The folder is **not a git repository** (no `.git`), so there is no commit histor
 4. `src/server/actions/<entity>.ts` — `"use server"`; create/update as `(prev, formData) => ActionResult`; delete as `(id, projectId)`; `revalidatePath`; `redirect` on create/delete; return `{message}` on failure (never throw on delete). Verify any linked ids belong to the project.
 5. `src/components/features/<entity>/` — Card, Form (`useActionState` + `useActionToast`), DeleteButton (`useDeleteAction`).
 6. `src/app/(app)/<entity>/` — `page.tsx` (await `searchParams`, use `ProjectSelector` + `FilterBar`), `new/`, `[id]/`, `[id]/edit/`, `[id]/not-found.tsx`.
-7. Wire in: `LINKS` in `components/layout/AppNav.tsx`; `searchProject`; `getDashboardData`; report page; `sitemap.ts`; seed.
+7. Wire in: `LINKS` in `components/layout/AppNav.tsx`; `searchProject`; `getDashboardData`; report page; seed.
 
 **Add a value to an existing enum** (e.g. a new `FindingCategory`): schema + migration, then update every hand-maintained copy listed in §12 (forms, `CategoryBadge`, `CATEGORY_LABEL`, `TranscriptExtractor.CATEGORY_OPTIONS`). The AI JSON schema and Zod validators use `Object.values(FindingCategory)` and update automatically.
 
